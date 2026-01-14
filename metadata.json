@@ -1,0 +1,8 @@
+{
+  "name": "Orquestador KAIROS v4.0",
+  "description": "Sistema avanzado de orquestación deportiva para LMB, NCAA y NBA. Análisis bilateral con enfoque en la Regla de Oro (28-Sep).",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}
