@@ -237,6 +237,30 @@ const App: React.FC = () => {
                 stake: Math.floor(rec.prediction_confidence * 5), isFireSignal: rec.prediction_confidence >= 0.85,
                 lmbContext: rec
             }));
+        } else if (module === ModuleType.NFL) {
+             const nflRecs = await nflService.fetchRecommendations(5);
+             sportRecords = nflRecs.map(rec => ({
+                 id: rec.id, type: 'MATCH', league: 'NFL', matchup: `${rec.away_team} @ ${rec.home_team}`,
+                 homeTeam: rec.home_team, awayTeam: rec.away_team, projectedWinner: rec.home_team,
+                 winnerProbability: rec.confidence_score * 100, winProbability: rec.confidence_score * 100,
+                 momentumScore: { home: 5, away: 5 }, playerProps: [], timestamp: new Date(rec.analysis_timestamp).getTime(),
+                 edge: rec.edge_percentage, prediction: rec.recommendation,
+                 summary: `NFL Orbital. Injury: ${rec.injury_impact || 'No critical'}`,
+                 stake: Math.floor(rec.confidence_score * 5), isFireSignal: rec.confidence_score >= 0.85 || rec.is_value_bet,
+                 nflContext: rec
+             }));
+        } else if (module === ModuleType.NBA) {
+             const nbaRecs = await nbaService.fetchRecommendations(5);
+             sportRecords = nbaRecs.map(rec => ({
+                 id: rec.id, type: 'MATCH', league: 'NBA', matchup: `${rec.away_team} @ ${rec.home_team}`,
+                 homeTeam: rec.home_team, awayTeam: rec.away_team, projectedWinner: rec.home_team,
+                 winnerProbability: rec.confidence_score * 100, winProbability: rec.confidence_score * 100,
+                 momentumScore: { home: 5, away: 5 }, playerProps: [], timestamp: new Date(rec.analysis_timestamp).getTime(),
+                 edge: rec.edge_percentage, prediction: rec.recommendation,
+                 summary: `NBA Terminal. Titanium: ${rec.titanium_score || 'Calculating'}`,
+                 stake: Math.floor(rec.confidence_score * 5), isFireSignal: rec.confidence_score >= 0.85,
+                 nbaContext: rec
+             }));
         } else if (module === ModuleType.NCAA) {
             setMessages(prev => [...prev, { 
                 id: `ncaa-spec-${Date.now()}`, role: 'model', 
@@ -473,7 +497,7 @@ const App: React.FC = () => {
                             </div>
                         </div>
                     ) : activeSignals.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in fade-in zoom-in-95 duration-700">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in zoom-in-95 duration-700">
                             {activeSignals.map((s, i) => (
                               s.type === 'MATCH' ? (
                                 <SignalCard key={s.id || i} signal={s as MatchDashboardData} compact onExpand={() => setExpandedSignal(s)} onSimulate={(sig) => setSimulationSignal(sig)} />

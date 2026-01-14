@@ -74,7 +74,7 @@ export const ModuleSelector: React.FC<ModuleSelectorProps> = ({
       textColor: 'text-blue-200',
       glowColor: 'shadow-[0_0_25px_rgba(59,130,246,0.4)]',
       status: 'active',
-      signalStrength: 89
+      signalStrength: 91
     },
     { 
       id: ModuleType.LMB, 
@@ -105,7 +105,7 @@ export const ModuleSelector: React.FC<ModuleSelectorProps> = ({
     { 
       id: ModuleType.SOCCER_EUROPE, 
       label: 'ATLAS EUROPA',
-      description: 'Fútbol europeo premium',
+      description: 'Champions y Ligas Top',
       icon: Globe,
       color: 'from-emerald-500 to-green-400',
       bgGradient: 'from-emerald-950/80 to-black',
@@ -114,6 +114,19 @@ export const ModuleSelector: React.FC<ModuleSelectorProps> = ({
       glowColor: 'shadow-[0_0_25px_rgba(16,185,129,0.4)]',
       status: 'active',
       signalStrength: 85
+    },
+    { 
+      id: ModuleType.SOCCER_AMERICAS, 
+      label: 'COSTA LATAM',
+      description: 'MLS, Liga MX y Conmebol',
+      icon: Anchor,
+      color: 'from-cyan-500 to-blue-400',
+      bgGradient: 'from-cyan-950/80 to-black',
+      borderColor: 'border-cyan-500/40',
+      textColor: 'text-cyan-300',
+      glowColor: 'shadow-[0_0_25px_rgba(6,182,212,0.4)]',
+      status: 'beta',
+      signalStrength: 78
     }
   ];
 
@@ -156,8 +169,8 @@ export const ModuleSelector: React.FC<ModuleSelectorProps> = ({
       
       <div className={`
         ${compact 
-          ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3' 
-          : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'
+          ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-7 gap-3' 
+          : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
         }
         w-full max-w-7xl mx-auto
       `}>
@@ -195,11 +208,6 @@ export const ModuleSelector: React.FC<ModuleSelectorProps> = ({
                   )}
                 </div>
               </div>
-              {!compact && module.signalStrength && (
-                <div className="text-[10px] font-mono font-bold flex items-center gap-1 opacity-60">
-                  <Activity className="w-3 h-3" /> {module.signalStrength}%
-                </div>
-              )}
             </div>
             
             {!compact && (

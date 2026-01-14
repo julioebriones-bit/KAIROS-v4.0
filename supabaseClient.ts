@@ -2,8 +2,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { ModuleType, BetTicket, GlobalIntelligence, GlobalSummary, BetStatus } from './types';
 
-const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_KEY || '';
+const supabaseUrl = process.env.SUPABASE_URL || 'https://leoenlegychbjxzmmfrk.supabase.co';
+const supabaseKey = process.env.SUPABASE_KEY || 'sb_publishable_55xXVo7kKqrYU51_yR3IYg_t20mzNXP';
 
 // Fix: Initialize client ONLY if URL and KEY are present to avoid "supabaseUrl is required" error.
 export const supabase = (supabaseUrl && supabaseKey) 
