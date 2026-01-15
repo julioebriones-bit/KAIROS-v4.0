@@ -1,21 +1,20 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 import { ksm } from "../stateManager";
-import { BetTicket, BetStatus, AutonomousLog, AgentType } from "../types";
-import { supabase, saveTicket } from "../supabaseClient";
+import { BetTicket, BetStatus, AutonomousLog } from "../types";
+import { saveTicket } from "../supabaseClient";
 
 /**
  * KAIROS_V8_AUTONOMOUS_ENGINE
  * Handles post-mortem analysis and new daily scouting autonomously.
  */
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 export const autonomousService = {
   /**
    * Runs a complete autonomous cycle: Post-Mortem + Scouting.
    */
   async runCycle(): Promise<AutonomousLog> {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const startTime = Date.now();
     const today = new Date().toISOString().split('T')[0];
     const log: AutonomousLog = { post_mortem: 0, scouting: 0, errors: [], timestamp: startTime };

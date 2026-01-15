@@ -4,7 +4,7 @@ import { ModuleType, GlobalIntelligence, MatchDashboardData, NeuralDebateResult 
 
 /**
  * KAIROS v8.5 Neural Orchestrator
- * Integrates v4.0 Golden Rule + v8.5 Deep Web Intelligence (Google Search Grounding)
+ * Integrates v4.0 Golden Rule + v8.5 Deep Web Intelligence
  */
 
 const SYSTEM_INSTRUCTION = `
@@ -21,28 +21,14 @@ Act as Orquestador KAIROS (v4.0). You are an elite bilateral sports analysis and
 - Deep Web Intelligence: Use Google Search to verify real-time injuries, weather, and market movement.
 
 ### OUTPUT PROTOCOL
-Return a JSON array of match objects. Each match object MUST contain:
-- "id": Unique string identifier.
-- "homeTeam", "awayTeam", "leagueName": Strings.
-- "winProbability": Number (0-100).
-- "edge": Number (Alpha Edge percentage).
-- "prediction": The specific pick.
-- "marketOdds": Estimated decimal market odds (1.60 - 3.50).
-- "expectedValue": EV decimal.
-- "titaniumScore": expectedValue * 1000.
-- "projectedWinner": Name of the team expected to win.
-- "isNeuralGrounded": true (since you use search).
-- "intelligenceDepth": "ORBITAL".
-- "playerProps": Array of exactly 3 objects: { "player": string, "propType": string, "projection": string, "confidence": number }. ALL players MUST be from the projectedWinner.
-- "summary": Neural summary of the value gap.
-- "stake": 1-5 units.
-- "debate": { "apollo": "string", "cassandra": "string", "socrates": "string", "meta": { "score": number, "verdict": "string" } }
-
-Response Mime Type: application/json
+Return a JSON array of match objects. Response Mime Type: application/json.
+Each match object MUST contain: id, homeTeam, awayTeam, winProbability, edge, prediction, marketOdds, expectedValue, titaniumScore, projectedWinner, isNeuralGrounded, playerProps (exactly 3 objects), summary, stake (1-5), and debate.
 `;
 
 export async function createAnalysisSession(module: ModuleType, learnedRules: string[] = [], globalIntel: GlobalIntelligence[] = []) {
+  // Siempre instanciar un nuevo cliente para asegurar que toma la API_KEY del entorno actual
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
   const now = new Date();
   const dateStr = now.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const context = `Active Module: ${module} | Rules: ${learnedRules.join(', ')} | Real-time: ${dateStr}`;
@@ -61,7 +47,7 @@ export async function createAnalysisSession(module: ModuleType, learnedRules: st
   const text = response.text;
   const parsed = JSON.parse(text || "[]");
   
-  // Extract grounding URLs
+  // Extraer fuentes de grounding según lineamientos de Google Search
   const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
   const sources = chunks.filter(c => c.web).map(c => ({ title: c.web.title, uri: c.web.uri }));
 

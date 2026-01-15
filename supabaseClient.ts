@@ -2,11 +2,11 @@
 import { createClient } from '@supabase/supabase-js';
 import { ModuleType, BetTicket, GlobalIntelligence, GlobalSummary, BetStatus } from './types';
 
-// Updated URL as per user request
-const supabaseUrl = process.env.SUPABASE_URL || 'https://roemtkunebvjkrnzubwf.supabase.co';
-const supabaseKey = process.env.SUPABASE_KEY || 'sb_publishable_55xXVo7kKqrYU51_yR3IYg_t20mzNXP';
+// URL actualizada según la configuración del proyecto
+const supabaseUrl = 'https://roemtkunebvjkrnzubwf.supabase.co';
+const supabaseKey = process.env.SUPABASE_KEY || '';
 
-// Initialize client ONLY if URL and KEY are present
+// Inicializar cliente solo si las credenciales están presentes
 export const supabase = (supabaseUrl && supabaseKey) 
   ? createClient(supabaseUrl, supabaseKey) 
   : null;
@@ -18,12 +18,10 @@ export const saveTicket = async (ticket: BetTicket): Promise<boolean> => {
       return true;
     }
     
-    // Fix: Remove 'timestamp' as it doesn't exist in the DB schema.
-    // We use the automatic 'created_at' or map it manually to match Supabase defaults.
+    // Eliminamos 'timestamp' para evitar conflictos con esquemas que usan 'created_at' automáticamente
     const { timestamp, ...rest } = ticket;
     const dbTicket = {
       ...rest,
-      // Map local timestamp to created_at if provided, otherwise Supabase handles it
       created_at: new Date(timestamp || Date.now()).toISOString()
     };
     
@@ -46,7 +44,6 @@ export const fetchTickets = async (module: ModuleType): Promise<BetTicket[]> => 
       return getMockTickets();
     }
 
-    // Fix: Ordering by 'created_at' instead of 'timestamp'
     const { data, error } = await supabase
       .from('tickets')
       .select('*')
@@ -58,7 +55,6 @@ export const fetchTickets = async (module: ModuleType): Promise<BetTicket[]> => 
     }
 
     return (data as any[]).map(row => {
-      // Map 'created_at' back to 'timestamp' for the app internal BetTicket type
       const { created_at, ...rest } = row;
       return {
         ...rest,
