@@ -10,32 +10,32 @@ export const systemHealthService = {
     if (!supabase) return this.getMockHealth();
     
     try {
-      // Changed: Selecting everything to avoid "column data does not exist" if schema is flat
+      // Fix: Selected '*' instead of 'data' to handle flat schemas
       const { data, error } = await supabase
         .from('system_health')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(1)
-        .maybeSingle(); // maybeSingle handles cases where table might be empty without error
+        .maybeSingle();
       
       if (error) {
-        console.warn('⚠️ [HEALTH_SERVICE] DB error, using mock:', error.message);
+        console.warn('⚠️ [HEALTH_SERVICE] DB schema error:', error.message);
         return this.getMockHealth();
       }
       
       if (data) {
-        // If the 'data' column exists and is a JSON object
+        // If 'data' column exists as JSON
         if (data.data && typeof data.data === 'object') return data.data as SystemHealthData;
         
-        // Fallback mapping: if the schema is flat (columns like status, uptime are direct)
+        // Fallback: Map flat columns to SystemHealthData structure
         return {
           status: data.status || 'operational',
           timestamp: data.created_at || new Date().toISOString(),
           services: data.services || { supabase: { status: 'healthy' } },
           metrics: {
-            total_tickets: data.total_tickets || data.metrics?.total_tickets || 0,
-            pending_tickets: data.pending_tickets || data.metrics?.pending_tickets || 0,
-            uptime: data.uptime || data.metrics?.uptime || 99.9
+            total_tickets: data.total_tickets || 0,
+            pending_tickets: data.pending_tickets || 0,
+            uptime: data.uptime || 99.9
           }
         } as SystemHealthData;
       }

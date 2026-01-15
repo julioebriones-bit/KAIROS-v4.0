@@ -2,7 +2,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { ModuleType, BetTicket, GlobalIntelligence, GlobalSummary, BetStatus } from './types';
 
-const supabaseUrl = process.env.SUPABASE_URL || 'https://leoenlegychbjxzmmfrk.supabase.co';
+// Updated URL as per user request
+const supabaseUrl = process.env.SUPABASE_URL || 'https://roemtkunebvjkrnzubwf.supabase.co';
 const supabaseKey = process.env.SUPABASE_KEY || 'sb_publishable_55xXVo7kKqrYU51_yR3IYg_t20mzNXP';
 
 // Initialize client ONLY if URL and KEY are present
@@ -17,17 +18,18 @@ export const saveTicket = async (ticket: BetTicket): Promise<boolean> => {
       return true;
     }
     
-    // Fix: Omit 'timestamp' from DB payload as column doesn't exist. 
-    // We map it to 'created_at' which is the standard Supabase column.
+    // Fix: Remove 'timestamp' as it doesn't exist in the DB schema.
+    // We use the automatic 'created_at' or map it manually to match Supabase defaults.
     const { timestamp, ...rest } = ticket;
     const dbTicket = {
       ...rest,
+      // Map local timestamp to created_at if provided, otherwise Supabase handles it
       created_at: new Date(timestamp || Date.now()).toISOString()
     };
     
     const { error } = await supabase.from('tickets').upsert([dbTicket], { onConflict: 'id' });
     if (error) {
-      console.error("Supabase Save Error:", JSON.stringify(error, null, 2));
+      console.error("Supabase Save Error Details:", JSON.stringify(error, null, 2));
       return false;
     }
     return true;
@@ -44,19 +46,19 @@ export const fetchTickets = async (module: ModuleType): Promise<BetTicket[]> => 
       return getMockTickets();
     }
 
+    // Fix: Ordering by 'created_at' instead of 'timestamp'
     const { data, error } = await supabase
       .from('tickets')
       .select('*')
       .order('created_at', { ascending: false });
       
     if (error) {
-      // PGRST204/PGRST205 error codes are usually missing tables/columns
-      console.warn("Fetch tickets error (falling back to mocks):", error.message);
+      console.warn("Fetch tickets schema mismatch (falling back to mocks):", error.message);
       return getMockTickets();
     }
 
     return (data as any[]).map(row => {
-      // Map 'created_at' back to 'timestamp' for app internal types
+      // Map 'created_at' back to 'timestamp' for the app internal BetTicket type
       const { created_at, ...rest } = row;
       return {
         ...rest,
@@ -86,9 +88,7 @@ export const fetchRules = async (): Promise<string[]> => {
   try {
     if (!supabase) return getDefaultRules();
     const { data, error } = await supabase.from('rules').select('content');
-    if (error) {
-      return getDefaultRules();
-    }
+    if (error) return getDefaultRules();
     return data?.map(r => r.content) || getDefaultRules();
   } catch (e) {
     return getDefaultRules();
@@ -105,9 +105,7 @@ export const fetchGlobalIntelligence = async (): Promise<GlobalIntelligence[]> =
   try {
     if (!supabase) return getMockIntel();
     const { data, error } = await supabase.from('ai_memory').select('*');
-    if (error) {
-      return getMockIntel();
-    }
+    if (error) return getMockIntel();
     return data?.map(d => ({
       id: d.id || d.pattern_description,
       topic: d.category,
