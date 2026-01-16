@@ -6,12 +6,12 @@ import { saveTicket } from "../supabaseClient";
 
 /**
  * KAIROS_V8_AUTONOMOUS_ENGINE
- * Handles post-mortem analysis and new daily scouting autonomously.
+ * Motor de Auditoría Neural y Scouting de Valor.
  */
 
 export const autonomousService = {
   /**
-   * Runs a complete autonomous cycle: Post-Mortem + Scouting.
+   * Ejecuta un ciclo completo: Auditoría de Resultados (Post-Mortem) + Búsqueda de Oportunidades (Scouting).
    */
   async runCycle(): Promise<AutonomousLog> {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -19,56 +19,73 @@ export const autonomousService = {
     const today = new Date().toISOString().split('T')[0];
     const log: AutonomousLog = { post_mortem: 0, scouting: 0, errors: [], timestamp: startTime };
 
-    ksm.logActivity('AUTONOMOUS', '🌀 Iniciando Ciclo Autónomo KAIROS v8.5...', 'high');
+    ksm.logActivity('AUTONOMOUS', '🌀 Iniciando Auditoría Neural KAIROS v4.0...', 'high');
 
     try {
-      // 1. POST-MORTEM: Verify pending results
-      const tickets = ksm.getHistory().filter(t => t.status === BetStatus.PENDING).slice(0, 10);
+      // 1. POST-MORTEM (AUDITORÍA): Verificar resultados de apuestas pendientes
+      const pendingTickets = ksm.getHistory().filter(t => t.status === BetStatus.PENDING).slice(0, 15);
       
-      for (const t of tickets) {
-        try {
-          ksm.logActivity('AUTONOMOUS', `🔍 Verificando Post-Mortem: ${t.homeTeam} vs ${t.awayTeam}`, 'low');
-          const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: `RESULTADO FINAL: ${t.homeTeam} vs ${t.awayTeam}. Fecha: ${new Date(t.timestamp).toLocaleDateString()}. Retorna JSON indicando si terminó, score y ganador.`,
-            config: {
-              tools: [{ googleSearch: {} }],
-              responseMimeType: "application/json",
-              responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                  finished: { type: Type.BOOLEAN },
-                  score: { type: Type.STRING },
-                  winner: { type: Type.STRING, description: "HOME|AWAY|DRAW" }
-                },
-                required: ["finished", "score", "winner"]
+      if (pendingTickets.length > 0) {
+        ksm.logActivity('AUTONOMOUS', `🔍 Auditando ${pendingTickets.length} señales pendientes...`, 'medium');
+        
+        for (const t of pendingTickets) {
+          try {
+            const auditPrompt = `
+              AUDITORÍA DEPORTIVA KAIROS.
+              Evento: ${t.homeTeam} vs ${t.awayTeam} (${t.module}).
+              Fecha del registro: ${new Date(t.timestamp).toLocaleDateString()}.
+              Predicción a verificar: "${t.prediction}".
+              
+              INSTRUCCIONES:
+              1. Busca el resultado final oficial de este encuentro.
+              2. Determina si la predicción mencionada fue acertada (WON), fallida (LOST) o si el mercado fue anulado (VOID).
+              3. Si el juego no ha terminado o no ha comenzado, marca finished como false.
+            `;
+
+            const response = await ai.models.generateContent({
+              model: 'gemini-3-flash-preview',
+              contents: auditPrompt,
+              config: {
+                tools: [{ googleSearch: {} }],
+                responseMimeType: "application/json",
+                responseSchema: {
+                  type: Type.OBJECT,
+                  properties: {
+                    finished: { type: Type.BOOLEAN, description: "True if the match ended and result is official" },
+                    score: { type: Type.STRING, description: "Final official score (e.g. 102-98)" },
+                    status: { 
+                      type: Type.STRING, 
+                      description: "WON, LOST, VOID or PENDING if not finished" 
+                    },
+                    reason: { type: Type.STRING, description: "Brief explanation of the audit verdict" }
+                  },
+                  required: ["finished", "score", "status", "reason"]
+                }
               }
-            }
-          });
+            });
 
-          const res = JSON.parse(response.text || "{}");
-          if (res.finished) {
-            const isWinnerHome = res.winner === 'HOME';
-            const predictionIncludesHome = t.prediction.toLowerCase().includes(t.homeTeam.toLowerCase());
-            const predictionIncludesAway = t.prediction.toLowerCase().includes(t.awayTeam.toLowerCase());
+            const res = JSON.parse(response.text || "{}");
             
-            let win = false;
-            if (isWinnerHome && predictionIncludesHome) win = true;
-            if (res.winner === 'AWAY' && predictionIncludesAway) win = true;
-
-            await ksm.updateTicketStatus(t.id, win ? BetStatus.WON : BetStatus.LOST);
-            log.post_mortem++;
+            if (res.finished && res.status !== 'PENDING') {
+              const newStatus = res.status as BetStatus;
+              await ksm.updateTicketStatus(t.id, newStatus);
+              ksm.logActivity('AUTONOMOUS', `✅ Auditoría completada [${t.homeTeam} vs ${t.awayTeam}]: ${newStatus} (${res.score})`, 'medium');
+              log.post_mortem++;
+            } else {
+              ksm.logActivity('AUTONOMOUS', `⏳ El encuentro ${t.homeTeam} vs ${t.awayTeam} sigue en espera de confirmación oficial.`, 'low');
+            }
+          } catch (e: any) {
+            console.error(`Audit Error for ${t.id}:`, e);
+            log.errors.push(`Audit Error [${t.id}]: ${e.message}`);
           }
-        } catch (e: any) {
-          log.errors.push(`Post-Mortem Error [${t.id}]: ${e.message}`);
         }
       }
 
-      // 2. SCOUTING: Identify today's top opportunities
-      ksm.logActivity('AUTONOMOUS', `🛰️ Iniciando Scouting Orbital para ${today}...`, 'medium');
+      // 2. SCOUTING: Identificar nuevas oportunidades de valor
+      ksm.logActivity('AUTONOMOUS', `🛰️ Iniciando Scouting Orbital para la jornada de hoy...`, 'medium');
       const scoutingResponse = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `JORNADA DE HOY (${today}): Identifica los 5 partidos TOP de Fútbol (Europa), NBA o MLB con mayor ineficiencia de mercado. Retorna JSON con equipos y liga.`,
+        contents: `JORNADA ACTUAL (${today}): Escanea los mercados de MLB, NBA y Fútbol Europeo. Identifica las 5 ineficiencias de mercado más claras (EV+). Aplica la REGLA DE ORO (Props solo al ganador).`,
         config: {
           tools: [{ googleSearch: {} }],
           responseMimeType: "application/json",
@@ -79,10 +96,13 @@ export const autonomousService = {
               properties: {
                 h: { type: Type.STRING, description: "Home team" },
                 a: { type: Type.STRING, description: "Away team" },
-                s: { type: Type.STRING, description: "Sport/Module (NBA, NFL, MLB, SOCCER_EUROPE)" },
-                l: { type: Type.STRING, description: "League name" }
+                s: { type: Type.STRING, description: "Module (NBA, MLB, SOCCER_EUROPE)" },
+                p: { type: Type.STRING, description: "Winning prediction" },
+                e: { type: Type.NUMBER, description: "Edge percentage (0-20)" },
+                st: { type: Type.NUMBER, description: "Stake (1-5)" },
+                r: { type: Type.STRING, description: "Neural reasoning summary" }
               },
-              required: ["h", "a", "s", "l"]
+              required: ["h", "a", "s", "p", "e", "st", "r"]
             }
           }
         }
@@ -91,41 +111,19 @@ export const autonomousService = {
       const matches = JSON.parse(scoutingResponse.text || "[]");
       for (const m of matches) {
         try {
-          ksm.logActivity('AUTONOMOUS', `🧬 Generando Análisis Bilateral: ${m.h} vs ${m.a}`, 'low');
-          const analysis = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: `Analiza: ${m.h} vs ${m.a} (${m.l}). Pronostica ganador y cuota de valor. REGLA DE ORO: Props al GANADOR solamente.`,
-            config: {
-              tools: [{ googleSearch: {} }],
-              responseMimeType: "application/json",
-              responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                  p: { type: Type.STRING, description: "The specific prediction" },
-                  c: { type: Type.NUMBER, description: "Confidence index 0-100" },
-                  e: { type: Type.NUMBER, description: "Market edge percentage 0-20" },
-                  s: { type: Type.NUMBER, description: "Stake recommendation 1-5" },
-                  r: { type: Type.STRING, description: "Neural summary of reasoning" }
-                },
-                required: ["p", "c", "e", "s", "r"]
-              }
-            }
-          });
-
-          const ana = JSON.parse(analysis.text || "{}");
           const gid = `auto-${today}-${m.h}-${m.a}`.toLowerCase().replace(/\s/g, '-');
           
           const ticket: BetTicket = {
             id: gid,
-            module: m.s,
+            module: m.s as any,
             homeTeam: m.h,
             awayTeam: m.a,
-            prediction: ana.p,
-            edge: ana.e,
-            stake: ana.s,
-            summary: ana.r,
+            prediction: m.p,
+            edge: m.e,
+            stake: m.st,
+            summary: m.r,
             status: BetStatus.PENDING,
-            isFireSignal: ana.c > 85,
+            isFireSignal: m.e > 12,
             timestamp: Date.now()
           };
 
@@ -137,11 +135,11 @@ export const autonomousService = {
         }
       }
 
-      ksm.logActivity('AUTONOMOUS', `✅ Ciclo Completado. PM: ${log.post_mortem} | Scout: ${log.scouting}`, 'medium');
+      ksm.logActivity('AUTONOMOUS', `🏁 Ciclo Finalizado. Auditados: ${log.post_mortem} | Nuevos: ${log.scouting}`, 'high');
       return log;
 
     } catch (err: any) {
-      ksm.logActivity('AUTONOMOUS', `🚨 Fallo Crítico en Ciclo Autónomo: ${err.message}`, 'critical');
+      ksm.logActivity('AUTONOMOUS', `🚨 Fallo Crítico: ${err.message}`, 'critical');
       log.errors.push(`Global Error: ${err.message}`);
       return log;
     }

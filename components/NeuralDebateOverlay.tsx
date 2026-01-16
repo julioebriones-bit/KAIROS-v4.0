@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { MatchDashboardData, AgentType } from '../types';
 import { 
@@ -16,12 +17,23 @@ export const NeuralDebateOverlay: React.FC<NeuralDebateOverlayProps> = ({ signal
   const [consensus, setConsensus] = useState(0);
 
   const steps = useMemo(() => {
+    const defaultVerdict = `Autorización de despliegue para señal ${signal.isFireSignal ? 'FIRE' : 'STABLE'}.`;
     const debate = signal.debate || {
       apollo: `Detectado Delta Positivo de Momentum. ${signal.homeTeam} muestra eficiencia ofensiva superior al 12%. Anclando props al ganador proyectado.`,
       cassandra: `Advertencia: Fatiga detectada en el roster secundario de ${signal.awayTeam}. Sin embargo, la varianza histórica es del 4.2%. Nivel de riesgo aceptable.`,
       socrates: `Lógica establecida: El mercado infravalora el ajuste defensivo de ${signal.projectedWinner}. Siguiendo la REGLA DE ORO, props verificados bilateralmente.`,
-      meta: { score: signal.winProbability || 94.2, verdict: `Autorización de despliegue para señal ${signal.isFireSignal ? 'FIRE' : 'STABLE'}.` }
+      meta: { score: signal.winProbability || 94.2, verdict: defaultVerdict }
     };
+
+    // Safe extraction of the meta argument
+    let metaArgument = "Consenso orbital alcanzado.";
+    if (debate.meta) {
+      if (typeof debate.meta === 'string') {
+        metaArgument = debate.meta;
+      } else if (typeof debate.meta === 'object' && 'verdict' in debate.meta) {
+        metaArgument = debate.meta.verdict || defaultVerdict;
+      }
+    }
 
     return [
       {
@@ -31,7 +43,7 @@ export const NeuralDebateOverlay: React.FC<NeuralDebateOverlayProps> = ({ signal
         color: "text-emerald-400",
         bg: "bg-emerald-500/10",
         border: "border-emerald-500/30",
-        argument: debate.apollo
+        argument: debate.apollo || "Análisis de momentum completado."
       },
       {
         agent: AgentType.CASSANDRA,
@@ -40,7 +52,7 @@ export const NeuralDebateOverlay: React.FC<NeuralDebateOverlayProps> = ({ signal
         color: "text-red-400",
         bg: "bg-red-500/10",
         border: "border-red-500/30",
-        argument: debate.cassandra
+        argument: debate.cassandra || "Riesgos de mercado analizados."
       },
       {
         agent: AgentType.SOCRATES,
@@ -49,7 +61,7 @@ export const NeuralDebateOverlay: React.FC<NeuralDebateOverlayProps> = ({ signal
         color: "text-amber-400",
         bg: "bg-amber-500/10",
         border: "border-amber-500/30",
-        argument: debate.socrates
+        argument: debate.socrates || "Valor matemático verificado."
       },
       {
         agent: AgentType.META,
@@ -58,7 +70,7 @@ export const NeuralDebateOverlay: React.FC<NeuralDebateOverlayProps> = ({ signal
         color: "text-virtus-aztecCyan",
         bg: "bg-virtus-aztecCyan/10",
         border: "border-virtus-aztecCyan/30",
-        argument: debate.meta.verdict
+        argument: metaArgument
       }
     ];
   }, [signal]);
@@ -67,7 +79,14 @@ export const NeuralDebateOverlay: React.FC<NeuralDebateOverlayProps> = ({ signal
     if (activeStep < steps.length) {
       const timer = setTimeout(() => {
         setIsTyping(false);
-        const nextConsensus = ((activeStep + 1) / steps.length) * (signal.debate?.meta.score || consensus);
+        
+        // Safe score extraction
+        let targetScore = signal.winProbability || 94.2;
+        if (signal.debate?.meta && typeof signal.debate.meta === 'object' && 'score' in signal.debate.meta) {
+          targetScore = signal.debate.meta.score || targetScore;
+        }
+
+        const nextConsensus = ((activeStep + 1) / steps.length) * targetScore;
         setConsensus(nextConsensus);
         
         if (activeStep < steps.length - 1) {
@@ -79,7 +98,7 @@ export const NeuralDebateOverlay: React.FC<NeuralDebateOverlayProps> = ({ signal
       }, 1200);
       return () => clearTimeout(timer);
     }
-  }, [activeStep, steps.length, signal.debate?.meta.score]);
+  }, [activeStep, steps.length, signal.winProbability, signal.debate]);
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-6 bg-black/98 backdrop-blur-3xl animate-in fade-in duration-500">
@@ -150,7 +169,7 @@ export const NeuralDebateOverlay: React.FC<NeuralDebateOverlayProps> = ({ signal
                         {index === activeStep && isTyping && (
                           <div className="flex gap-2 px-4 py-1.5 bg-black/60 rounded-full border border-virtus-aztecCyan/20 shadow-inner">
                             <RefreshCw className="w-3 h-3 text-virtus-aztecCyan animate-spin" />
-                            <span className="text-[9px] font-mono text-gray-500 uppercase tracking-widest uppercase">Arbitrating...</span>
+                            <span className="text-[9px] font-mono text-gray-500 uppercase tracking-widest">Arbitrating...</span>
                           </div>
                         )}
                       </div>
