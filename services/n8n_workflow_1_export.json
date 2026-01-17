@@ -1,0 +1,188 @@
+{
+    "name": "Kairos_V2_Workflow_1_EarlyBird",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "5 0 * * *"
+                        }
+                    ]
+                }
+            },
+            "id": "e9a1b1c1-d1e1-4f1g-h1i1-j1k1l1m1n1o1",
+            "name": "Cron 00:05 AM",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1,
+            "position": [
+                400,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "https://sofascore.p.rapidapi.com/tournaments/get-next-matches",
+                "authentication": "none",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "x-rapidapi-key",
+                            "value": "62a2c7c363msh70025a2fe333f3ap1158ecjsnff47af66a4d9"
+                        },
+                        {
+                            "name": "x-rapidapi-host",
+                            "value": "sofascore.p.rapidapi.com"
+                        }
+                    ]
+                },
+                "queryParameters": {
+                    "parameters": [
+                        {
+                            "name": "tournamentId",
+                            "value": "17"
+                        },
+                        {
+                            "name": "seasonId",
+                            "value": "52186"
+                        }
+                    ]
+                }
+            },
+            "id": "a2b2c2d2-e2f2-4g2h-i2j2-k2l2m2n2o2p2",
+            "name": "SofaScore API",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                620,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "https://api.the-odds-api.com/v4/sports/soccer_epl/odds/",
+                "authentication": "none",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "apiKey",
+                            "value": "dd5186c23e0be2ad862313449b0078b5"
+                        }
+                    ]
+                },
+                "queryParameters": {
+                    "parameters": [
+                        {
+                            "name": "apiKey",
+                            "value": "dd5186c23e0be2ad862313449b0078b5"
+                        },
+                        {
+                            "name": "regions",
+                            "value": "us"
+                        },
+                        {
+                            "name": "markets",
+                            "value": "h2h"
+                        },
+                        {
+                            "name": "oddsFormat",
+                            "value": "decimal"
+                        }
+                    ]
+                }
+            },
+            "id": "c3d3e3f3-g3h3-4i3j-k3l3-m3n3o3p3q3r3",
+            "name": "The Odds API",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                620,
+                500
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const matches = $node[\"SofaScore API\"].json.events; \nconst odds = $json;           \n\nlet results = [];\n\nfor (const match of matches) {\n  const matchOdds = odds.find(o => \n    o.home_team.toLowerCase().includes(match.homeTeam.shortName.toLowerCase()) || \n    o.away_team.toLowerCase().includes(match.awayTeam.shortName.toLowerCase())\n  );\n\n  if (matchOdds) {\n    results.push({\n      match_id: match.id,\n      teams: `${match.homeTeam.name} vs ${match.awayTeam.name}`,\n      start_time: match.startTimestamp,\n      odds: matchOdds.bookmakers[0].markets[0].outcomes,\n      tournament: match.tournament.name,\n      raw_sport: match.tournament.category.name\n    });\n  }\n}\n\nreturn results;"
+            },
+            "id": "d4e4f4g4-h4i4-5j4k-l4m4-n4o4p4q4r4s4",
+            "name": "Merge & Map",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                840,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "dataType": "string",
+                "value1": "={{ $json.tournament }}",
+                "rules": {
+                    "rules": [
+                        {
+                            "value2": "Premier League",
+                            "output": 0
+                        }
+                    ]
+                }
+            },
+            "id": "e5f5g5h5-i5j5-6k5l-m5n5-o5p5q5r5s5t5",
+            "name": "Router Gerente",
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 1,
+            "position": [
+                1060,
+                400
+            ]
+        }
+    ],
+    "connections": {
+        "Cron 00:05 AM": {
+            "main": [
+                [
+                    {
+                        "node": "SofaScore API",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "SofaScore API": {
+            "main": [
+                [
+                    {
+                        "node": "The Odds API",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "The Odds API": {
+            "main": [
+                [
+                    {
+                        "node": "Merge & Map",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Merge & Map": {
+            "main": [
+                [
+                    {
+                        "node": "Router Gerente",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

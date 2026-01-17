@@ -1,0 +1,46 @@
+{
+    "reglas_matematicas": {
+        "probabilidad_implicita": {
+            "formula": "1 / cuota_decimal",
+            "ejemplo": "Cuota 2.00 = 50% probabilidad implícita"
+        },
+        "valor_esperado": {
+            "formula": "(probabilidad_real * cuota) - 1",
+            "regla": "Si EV > 0.05 (5%) → Tiene valor",
+            "ejemplo": {
+                "cuota": 2.50,
+                "probabilidad_implicita": 0.40,
+                "probabilidad_real_estimada": 0.45,
+                "valor_esperado": 0.125,
+                "decision": "APOSTAR (12.5% de valor)"
+            }
+        },
+        "trampa_nombre_famoso": {
+            "descripcion": "Casas inflan cuotas de jugadores famosos",
+            "ejemplos": [
+                {
+                    "jugador": "Haaland",
+                    "linea_tiros": 4.5,
+                    "cuota_over": 1.80,
+                    "probabilidad_implicita": "55.5%",
+                    "probabilidad_real": "65%",
+                    "analisis": "Tiene valor, but cuota baja por nombre famoso"
+                },
+                {
+                    "jugador": "Jugador desconocido",
+                    "linea_tiros": 2.5,
+                    "cuota_over": 2.20,
+                    "probabilidad_implicita": "45.5%",
+                    "probabilidad_real": "48%",
+                    "analisis": "Poco valor, but cuota más generosa"
+                }
+            ],
+            "regla": "Buscar jugadores 'bajo el radar' con buenas estadísticas"
+        }
+    },
+    "umbrales_valor": {
+        "minimo_aceptable": 0.05,
+        "valor_alto": 0.15,
+        "valor_excepcional": 0.25
+    }
+}

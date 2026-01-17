@@ -1,0 +1,257 @@
+{
+    "name": "Kairos_V2_Workflow_2_UniversalAI",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "kairos-brain-input",
+                "options": {}
+            },
+            "id": "b1a1-trigger",
+            "name": "Webhook Input",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                200,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "getAll",
+                "database": "public",
+                "table": "league_context",
+                "returnAll": false,
+                "limit": 1,
+                "filters": {
+                    "conditions": [
+                        {
+                            "key": "league_name",
+                            "operation": "equal",
+                            "value": "={{ $node[\"Webhook Input\"].json.tournament }}"
+                        }
+                    ]
+                }
+            },
+            "id": "b2a2-supabase-get",
+            "name": "Get Context from Supabase",
+            "type": "n8n-nodes-base.supabase",
+            "typeVersion": 1,
+            "position": [
+                400,
+                400
+            ],
+            "credentials": {
+                "supabaseApi": {
+                    "id": "TU_CREDENTIAL_SUPABASE"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=TU_API_KEY_GEMINI",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"contents\": [{\n    \"parts\":[{\n      \"text\": \"Eres un Estadístico Deportivo de élite. Analiza: {{ $node[\\\"Webhook Input\\\"].json.teams }}. Datos: {{ JSON.stringify($node[\\\"Webhook Input\\\"].json.raw_match_data) }}. Veredicto (APROBADO/RECHAZADO).\"\n    }]\n  }]\n}",
+                "options": {}
+            },
+            "id": "b3a3-gemini-http",
+            "name": "Auditor A (Gemini)",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                650,
+                250
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://api.anthropic.com/v1/messages",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "x-api-key",
+                            "value": "TU_API_KEY_CLAUDE"
+                        },
+                        {
+                            "name": "anthropic-version",
+                            "value": "2023-06-01"
+                        },
+                        {
+                            "name": "content-type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"model\": \"claude-3-5-sonnet-20241022\",\n  \"max_tokens\": 1024,\n  \"messages\": [{\n    \"role\": \"user\",\n    \"content\": \"Eres un Analista Contextual. Contexto: {{ $node[\\\"Get Context from Supabase\\\"].json.context_rules }}. Partido: {{ $node[\\\"Webhook Input\\\"].json.teams }}. Veredicto (APROBADO/RECHAZADO).\"\n  }]\n}",
+                "options": {}
+            },
+            "id": "b4a4-claude-http",
+            "name": "Auditor B (Claude)",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                650,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://api.deepseek.com/chat/completions",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "Bearer TU_API_KEY_DEEPSEEK"
+                        }
+                    ]
+                },
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "model",
+                            "value": "deepseek-chat"
+                        },
+                        {
+                            "name": "messages",
+                            "value": "=[{\"role\": \"system\", \"content\": \"Eres un Auditor de Valor Financiero.\"}, {\"role\": \"user\", \"content\": \"Compara cuotas: {{ JSON.stringify($node[\\\"Webhook Input\\\"].json.odds) }} para {{ $node[\\\"Webhook Input\\\"].json.teams }}. Veredicto (APROBADO/RECHAZADO).\"}]"
+                        }
+                    ]
+                }
+            },
+            "id": "b5a5-deepseek-http",
+            "name": "Auditor C (DeepSeek)",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                650,
+                550
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "// Lógica de Consenso Universal\nconst rA = $node[\"Auditor A (Gemini)\"].json.candidates[0].content.parts[0].text;\nconst rB = $node[\"Auditor B (Claude)\"].json.content[0].text;\nconst rC = $node[\"Auditor C (DeepSeek)\"].json.choices[0].message.content;\n\nconst count = [rA, rB, rC].filter(r => r.toUpperCase().includes('APROBADO')).length;\n\nreturn {\n  decision: count >= 2 ? 'APPROVED' : 'REJECTED',\n  consensus_score: count,\n  summary: `A: ${rA.substring(0,50)} | B: ${rB.substring(0,50)} | C: ${rC.substring(0,50)}`\n};"
+            },
+            "id": "b6a6-logic",
+            "name": "Consenso Final",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                900,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "table": "soccer_recommendations",
+                "columns": {
+                    "mappingMode": "defineBelow",
+                    "value": {
+                        "match_info": "={{ $node[\"Webhook Input\"].json.teams }}",
+                        "prediction": "={{ $node[\"Consenso Final\"].json.summary }}",
+                        "confidence_score": "={{ $node[\"Consenso Final\"].json.consensus_score * 33 }}",
+                        "status": "PENDING"
+                    }
+                }
+            },
+            "id": "b7a7-supabase",
+            "name": "Supabase Save",
+            "type": "n8n-nodes-base.supabase",
+            "typeVersion": 1,
+            "position": [
+                1100,
+                400
+            ],
+            "credentials": {
+                "supabaseApi": {
+                    "id": "TU_CREDENTIAL_SUPABASE"
+                }
+            }
+        }
+    ],
+    "connections": {
+        "Webhook Input": {
+            "main": [
+                [
+                    {
+                        "node": "Get Context from Supabase",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Get Context from Supabase": {
+            "main": [
+                [
+                    {
+                        "node": "Auditor A (Gemini)",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Auditor B (Claude)",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Auditor C (DeepSeek)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Auditor A (Gemini)": {
+            "main": [
+                [
+                    {
+                        "node": "Consenso Final",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Auditor B (Claude)": {
+            "main": [
+                [
+                    {
+                        "node": "Consenso Final",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Auditor C (DeepSeek)": {
+            "main": [
+                [
+                    {
+                        "node": "Consenso Final",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Consenso Final": {
+            "main": [
+                [
+                    {
+                        "node": "Supabase Save",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

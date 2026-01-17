@@ -1,0 +1,7 @@
+{
+    "patrones_identificados": [],
+    "configuracion_algoritmo": {
+        "sensibilidad": 0.5,
+        "periodo_analisis_dias": 30
+    }
+}
