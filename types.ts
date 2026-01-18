@@ -1,4 +1,5 @@
 
+
 export enum SeverityLevel {
   LOW = 'low',
   MEDIUM = 'medium',
@@ -60,6 +61,12 @@ export interface SystemHealthData {
   timestamp: string;
   services: {
     supabase: {
+      status: 'healthy' | 'error';
+      latency?: number;
+      error?: string;
+    };
+    // Fix: Added vercel service property to resolve TS error in systemHealthService.ts where vercel status is reported.
+    vercel?: {
       status: 'healthy' | 'error';
       latency?: number;
       error?: string;

@@ -22,41 +22,51 @@ Act as Orquestador KAIROS (v4.0). You are an elite bilateral sports analysis and
 
 ### OUTPUT PROTOCOL
 Return a JSON array of match objects. Response Mime Type: application/json.
-Each match object MUST contain: id, homeTeam, awayTeam, winProbability, edge, prediction, marketOdds, expectedValue, titaniumScore, projectedWinner, isNeuralGrounded, playerProps (exactly 3 objects), summary, stake (1-5), and debate.
+Each match object MUST contain: 
+id, homeTeam, awayTeam, winProbability, edge, prediction, marketOdds, expectedValue, titaniumScore, projectedWinner, isNeuralGrounded, playerProps (exactly 3 objects), summary, stake (1-5).
+
+Each match object MUST also contain a "debate" object with:
+- apollo: Strategic momentum view.
+- cassandra: Risk and variance scan.
+- socrates: Logical verification.
+- meta: { score: number, verdict: string } (Final consensus score and verdict message).
 `;
 
 export async function createAnalysisSession(module: ModuleType, learnedRules: string[] = [], globalIntel: GlobalIntelligence[] = []) {
-  // Siempre instanciar un nuevo cliente para asegurar que toma la API_KEY del entorno actual
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const now = new Date();
   const dateStr = now.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const context = `Active Module: ${module} | Rules: ${learnedRules.join(', ')} | Real-time: ${dateStr}`;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
-    contents: `Analiza los partidos más relevantes de ${module} para las próximas 24 horas. Contexto: ${context}. Ejecuta Deep Web Scan y aplica la REGLA DE ORO.`,
-    config: {
-      systemInstruction: SYSTEM_INSTRUCTION,
-      temperature: 0.1,
-      responseMimeType: "application/json",
-      tools: [{ googleSearch: {} }]
-    },
-  });
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-preview',
+      contents: `Analiza los partidos más relevantes de ${module} para las próximas 24 horas. Contexto: ${context}. Ejecuta Deep Web Scan y aplica la REGLA DE ORO.`,
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
+        temperature: 0.1,
+        responseMimeType: "application/json",
+        tools: [{ googleSearch: {} }]
+      },
+    });
 
-  const text = response.text;
-  const parsed = JSON.parse(text || "[]");
-  
-  // Extraer fuentes de grounding según lineamientos de Google Search
-  const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-  const sources = chunks.filter(c => c.web).map(c => ({ title: c.web.title, uri: c.web.uri }));
+    const text = response.text;
+    const parsed = JSON.parse(text || "[]");
+    
+    const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+    const sources = chunks.filter(c => c.web).map(c => ({ title: c.web.title, uri: c.web.uri }));
 
-  return (Array.isArray(parsed) ? parsed : [parsed]).map(m => ({
-    ...m,
-    isNeuralGrounded: true,
-    groundingSources: sources,
-    type: 'MATCH'
-  }));
+    return (Array.isArray(parsed) ? parsed : [parsed]).map(m => ({
+      ...m,
+      isNeuralGrounded: true,
+      groundingSources: sources,
+      type: 'MATCH'
+    }));
+  } catch (error) {
+    console.error("Analysis Session Error:", error);
+    return [];
+  }
 }
 
 export async function runNeuralDebate(match: MatchDashboardData, module: ModuleType): Promise<NeuralDebateResult> {
@@ -66,28 +76,42 @@ export async function runNeuralDebate(match: MatchDashboardData, module: ModuleT
     model: 'gemini-3-flash-preview',
     contents: `ORQUESTADOR NEURAL: Realiza un debate interno para el partido ${match.homeTeam} vs ${match.awayTeam} de ${module}. Verifica la REGLA DE ORO.`,
     config: {
-      systemInstruction: "You are KAIROS v4.0 META Agent. Ensure absolute adherence to the Value Betting philosophy and the Golden Rule (Props to Winner only).",
+      systemInstruction: "You are KAIROS v4.0 META Agent. Ensure absolute adherence to the Value Betting philosophy and the Golden Rule (Props to Winner only). Output JSON with apollo_view, cassandra_view, socrates_view, and meta_decision (containing summary and confidence).",
       responseMimeType: "application/json",
       tools: [{ googleSearch: {} }]
     }
   });
 
-  const data = JSON.parse(response.text || "{}");
-  
-  return {
-    apollo: data.apollo_view || "Validación de momentum completada.",
-    cassandra: data.cassandra_view || "Riesgos de mercado analizados vía Grounding.",
-    socrates: data.socrates_view || "Valor matemático verificado.",
-    meta: data.meta_decision?.summary || "Consenso orbital alcanzado.",
-    finalDecision: !!data.meta_decision?.finalDecision,
-    neuralAnchor: `kairos-${Math.random().toString(36).substring(7)}`,
-    confidence: data.meta_decision?.confidence || 95,
-    quantumEntropy: data.entropy || 0.042,
-    blackSwanProb: data.blackSwan || 0.012,
-    evidence: { 
-      causal: data.meta_decision?.summary || "Análisis lógico bilateral", 
-      counterfactual: "Validación de realidad paralela completada", 
-      philosophical: "Consenso v8.5" 
-    }
-  };
+  try {
+    const data = JSON.parse(response.text || "{}");
+    return {
+      apollo: data.apollo_view || "Validación de momentum completada.",
+      cassandra: data.cassandra_view || "Riesgos de mercado analizados vía Grounding.",
+      socrates: data.socrates_view || "Valor matemático verificado.",
+      meta: data.meta_decision?.summary || "Consenso orbital alcanzado.",
+      finalDecision: !!data.meta_decision?.finalDecision,
+      neuralAnchor: `kairos-${Math.random().toString(36).substring(7)}`,
+      confidence: data.meta_decision?.confidence || 95,
+      quantumEntropy: data.entropy || 0.042,
+      blackSwanProb: data.blackSwan || 0.012,
+      evidence: { 
+        causal: data.meta_decision?.summary || "Análisis lógico bilateral", 
+        counterfactual: "Validación de realidad paralela completada", 
+        philosophical: "Consenso v8.5" 
+      }
+    };
+  } catch (error) {
+    return {
+      apollo: "Fallo en motor de debate.",
+      cassandra: "Fallo en motor de debate.",
+      socrates: "Fallo en motor de debate.",
+      meta: "Fallo en motor de debate.",
+      finalDecision: false,
+      neuralAnchor: "error",
+      confidence: 0,
+      quantumEntropy: 1,
+      blackSwanProb: 1,
+      evidence: { causal: "Error", counterfactual: "Error", philosophical: "Error" }
+    };
+  }
 }

@@ -1,16 +1,18 @@
 
 import { supabase } from '../supabaseClient';
 import { SystemHealthData } from '../types';
+import { vercelService } from './vercelService';
 
 export const systemHealthService = {
   /**
-   * Obtiene el último registro de salud del sistema desde Supabase.
+   * Obtiene el último registro de salud del sistema, integrando el estado de Vercel.
    */
   async fetchLatestHealth(): Promise<SystemHealthData | null> {
-    if (!supabase) return this.getMockHealth();
+    const vercelStatus = await vercelService.getProductionStatus();
+    
+    if (!supabase) return this.getMockHealth(vercelStatus);
     
     try {
-      // Fix: Selected '*' instead of 'data' to handle flat schemas
       const { data, error } = await supabase
         .from('system_health')
         .select('*')
@@ -20,18 +22,18 @@ export const systemHealthService = {
       
       if (error) {
         console.warn('⚠️ [HEALTH_SERVICE] DB schema error:', error.message);
-        return this.getMockHealth();
+        return this.getMockHealth(vercelStatus);
       }
       
       if (data) {
-        // If 'data' column exists as JSON
-        if (data.data && typeof data.data === 'object') return data.data as SystemHealthData;
-        
-        // Fallback: Map flat columns to SystemHealthData structure
+        // Combinamos datos de Supabase con el estado real de Vercel
         return {
-          status: data.status || 'operational',
+          status: vercelStatus, // Priorizamos el estado real de Vercel
           timestamp: data.created_at || new Date().toISOString(),
-          services: data.services || { supabase: { status: 'healthy' } },
+          services: {
+            supabase: { status: 'healthy' },
+            vercel: { status: vercelStatus === 'operational' ? 'healthy' : 'error' }
+          },
           metrics: {
             total_tickets: data.total_tickets || 0,
             pending_tickets: data.pending_tickets || 0,
@@ -40,19 +42,20 @@ export const systemHealthService = {
         } as SystemHealthData;
       }
       
-      return this.getMockHealth();
+      return this.getMockHealth(vercelStatus);
     } catch (e) {
       console.error('❌ [HEALTH_SERVICE] Exception:', e);
-      return this.getMockHealth();
+      return this.getMockHealth(vercelStatus);
     }
   },
 
-  getMockHealth(): SystemHealthData {
+  getMockHealth(vercelStatus: 'operational' | 'degraded' | 'critical' = 'operational'): SystemHealthData {
     return {
-      status: 'operational',
+      status: vercelStatus,
       timestamp: new Date().toISOString(),
       services: {
-        supabase: { status: 'healthy' }
+        supabase: { status: 'healthy' },
+        vercel: { status: vercelStatus === 'operational' ? 'healthy' : 'error' }
       },
       metrics: {
         total_tickets: 142,
